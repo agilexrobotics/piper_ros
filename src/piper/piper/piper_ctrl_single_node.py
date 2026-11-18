@@ -299,7 +299,17 @@ class PiperRosNode(Node):
         for idx, joint_name in enumerate(joint_data.name):
             self.get_logger().info(f"{joint_name}: {joint_data.position[idx]}")
             joint_positions[joint_name] = round(joint_data.position[idx] * factor)
-        
+
+        # 缺少任一机械臂关节时忽略该指令, 否则缺少的关节会被发送为 0
+        # Ignore a command that lacks any arm joint: a missing joint would be sent to 0 rad
+        missing_joints = [f'joint{i}' for i in range(1, 7) if f'joint{i}' not in joint_positions]
+        if missing_joints:
+            self.get_logger().error(
+                f"joint_ctrl_single: {missing_joints} missing from the command "
+                f"(received names: {list(joint_data.name)}), command ignored",
+                throttle_duration_sec=1.0)
+            return
+
         # 获取第7个关节的位置
         if len(joint_data.position) >= 7:
             # self.get_logger().info(f"joint_7: {joint_data.position[6]}")
